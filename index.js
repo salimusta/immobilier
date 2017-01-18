@@ -14,7 +14,7 @@ String.prototype.replaceAll = function(search, replacement) {
 
 
 let activeThreads = 0;
-let MAX_THREAD = 10;
+
 let nbEntriesAdded = 0;
 let nbEntriesSkipped = 0;
 let nbEntriesUpdated = 0;
@@ -39,6 +39,11 @@ let currentPage = 1;
 let dbData;
 
 RetrieveLocations();
+
+const RECURRENT_SEARCH = false;
+const MAX_THREAD = 1;
+const DEEP_FETCH = true;
+
 
 function AddHistory(client, adId, field, newValue) {
   var sqlInsert = sqlQuery.insert();
@@ -147,38 +152,39 @@ function onDataReceived(data) {
       let i
       for (i in data2.results) {
         let ad = data2.results[i];
+        if (DEEP_FETCH) {
+          data2.results[i].getDetails().then(function (details) {
+              console.log("Details Received for ", ad.id)
+              ad = details
+              //Check if the entry alreafy exists
+              const storedAd = dbData[ad.id];
+              if(storedAd) {
+                //compare both and add a new modif if necessary
+                let changed = false;
+                if (storedAd.price !== ad.price) {
+                  AddHistory(client, ad.id, 'price', ad.price);
+                  changed = true;
+                }
+                if (changed) {
+                  UpdateEntry(ad)
+                }
+              }
+              if (!storedAd) {
+                AddEntry(client, ad);
+              }
+
+          }, function (err) {
+              console.error(err);
+          });
+        }
         console.log("Getting Details for ", ad.id)
-        data2.results[i].getDetails().then(function (details) {
-            console.log("Details Received for ", ad.id)
-            ad = details
-            //Check if the entry alreafy exists
-            const storedAd = dbData[ad.id];
-            if(storedAd) {
-              //compare both and add a new modif if necessary
-              let changed = false;
-              if (storedAd.price !== ad.price) {
-                AddHistory(client, ad.id, 'price', ad.price);
-                changed = true;
-              }
-              if (changed) {
-                UpdateEntry(ad)
-              }
-              //continue;
-            }
 
-            if (!storedAd) {
-              AddEntry(client, ad);
-            }
-
-        }, function (err) {
-            console.error(err);
-        });
 
       }
       done();
     });
 
-    if(pageTotal == 35) {
+    if(pageTotal == 35 && RECURRENT_SEARCH) {
       while(activeThreads < MAX_THREAD && currentPage < nbPage) {
         activeThreads++;
         SearchLocations(++currentPage)
@@ -190,7 +196,8 @@ function onDataReceived(data) {
 }
 
 function SearchLocations(currentPage) {
-  const search = new leboncoin.Search().setPage(currentPage);
+  const search = new leboncoin.Search().setCategory("ventes_immobilieres").setRegion("ile_de_france").setPage(currentPage);
+
 
   console.log("Fetching content: Locations Particulier, Page ", currentPage)
 
