@@ -40,8 +40,8 @@ let dbData;
 
 RetrieveLocations();
 
-const RECURRENT_SEARCH = false;
-const MAX_THREAD = 1;
+const RECURRENT_SEARCH = true;
+const MAX_THREAD = 30;
 const DEEP_FETCH = true;
 
 
@@ -87,7 +87,7 @@ function UpdateEntry(client, ad) {
 }
 
 function AddEntry(client, ad) {
-  console.log("Add Entry ", ad.id, ++nbEntriesAdded)
+  //console.log("Add Entry ", ad.id, ++nbEntriesAdded)
   var sqlInsert = sqlQuery.insert();
   const data = {
     id: ad.id,
@@ -116,6 +116,7 @@ function AddEntry(client, ad) {
   const requete = sqlInsert.into('immobilier').set(data).build().replaceAll("`", "");
   client.query(requete, function(err, result) {
     if(err) {
+    	console.log("REQUETE: ", requete);
       return console.error('error running query', err);
     }
   });
@@ -139,7 +140,7 @@ function onDataReceived(data) {
     */
     const nbPage = nbTotal / pageTotal;
     const avancement = Math.round((currentPage / nbPage) * 100);
-    console.log("Content received ", nbTotal, pageTotal, "---"+avancement+"%")
+    console.log("Content received ", nbTotal, pageTotal, nbEntriesAdded, "---"+avancement+"%")
     console.log("Active Thread :" + activeThreads + "/" + MAX_THREAD)
 
 
@@ -154,7 +155,7 @@ function onDataReceived(data) {
         let ad = data2.results[i];
         if (DEEP_FETCH) {
           data2.results[i].getDetails().then(function (details) {
-              console.log("Details Received for ", ad.id)
+              //console.log("Details Received for ", ad.id)
               ad = details
               //Check if the entry alreafy exists
               const storedAd = dbData[ad.id];
